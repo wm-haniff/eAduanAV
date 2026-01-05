@@ -194,7 +194,7 @@ const FAQItem = ({ item, index, activeFAQ, handleToggle }) => {
             {/* Answer Content */}
             <div
               className={`px-6 py-6 text-gray-700 bg-gray-50/50 transition-all duration-300 overflow-hidden 
-              ${isItemOpen ? "max-h-[5000px] opacity-100" : "max-h-0 opacity-0"}`}
+              ${isItemOpen ? "max-h-1250 opacity-100" : "max-h-0 opacity-0"}`}
             >
               {item.answer}
             </div>
@@ -220,11 +220,20 @@ export default function App() {
       {/* NAVBAR */}
       <nav className="fixed top-0 w-full border-b border-gray-200 py-4 bg-white shadow-sm z-50">
         <div className="flex items-center justify-between mx-auto px-4 max-w-7xl">
-          <a href="#" className="text-2xl font-extrabold text-indigo-700 tracking-wider">
-            E-ADUAN AV
+          <a href="/" className="text-2xl font-extrabold text-indigo-700 tracking-wider">
+          E-ADUAN AV
           </a>
-        </div>
+
+        {/* Dashboard Button */}
+        <a
+          href="/admin/dashboard"
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold shadow hover:bg-indigo-700 transition"
+        >
+          Dashboard
+        </a>
+      </div>
       </nav>
+
 
       {/* MAIN CONTENT */}
       <section className="w-full pt-24 pb-20 px-4 md:px-6">
