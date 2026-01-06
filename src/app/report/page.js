@@ -101,29 +101,45 @@ export default function ReportForm() {
      HANDLE SUBMIT
      ====================== */
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  e.preventDefault();
 
-    const { error } = await supabase.from("reports").insert([
-      {
-        name: formData.name,
-        building_id: formData.building_id,
-        floor_id: formData.floor_id,
-        room_id: formData.room_id,
-        equipment: formData.equipment,
-        description: formData.description,
-      },
-    ]);
+  // ✅ FIX 2: Manual validation (IMPORTANT)
+  if (
+    !formData.building_id ||
+    !formData.floor_id ||
+    !formData.room_id
+  ) {
+    alert("Sila pilih bangunan, aras dan bilik.");
+    return;
+  }
 
-    setLoading(false);
+  setLoading(true);
 
-    if (error) {
-      alert("Gagal hantar laporan, sila cuba lagi.");
-      console.error(error);
-    } else {
-      setSubmitted(true);
-    }
+  // ✅ FIX 1: Convert empty string to null
+  const payload = {
+    name: formData.name,
+    building_id: formData.building_id || null,
+    floor_id: formData.floor_id || null,
+    room_id: formData.room_id || null,
+    equipment: formData.equipment,
+    description: formData.description,
   };
+
+  const { error } = await supabase
+    .from("reports")
+    .insert([payload]);
+
+  setLoading(false);
+
+  if (error) {
+    console.error("Supabase error:", error);
+    alert(error.message);
+  } else {
+    setSubmitted(true);
+  }
+};
+
+
 
   /* ======================
      SUCCESS PAGE
