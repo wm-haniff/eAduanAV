@@ -13,6 +13,7 @@ import Link from "next/link";
 import { supabase } from "../lib/supabase";
 
 export default function ReportForm() {
+  const [mounted, setMounted] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -36,9 +37,18 @@ export default function ReportForm() {
   });
 
   /* ======================
+     HYDRATION FIX
+     ====================== */
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  /* ======================
      FETCH BUILDINGS
      ====================== */
   useEffect(() => {
+    if (!mounted) return;
+
     const fetchBuildings = async () => {
       const { data } = await supabase
         .from("buildings")
@@ -47,8 +57,9 @@ export default function ReportForm() {
 
       setBuildings(data || []);
     };
+
     fetchBuildings();
-  }, []);
+  }, [mounted]);
 
   /* ======================
      FETCH FLOORS
@@ -60,13 +71,14 @@ export default function ReportForm() {
       const { data } = await supabase
         .from("floors")
         .select("*")
-        .eq("building_id", formData.building_id)
+        .eq("id_building", formData.building_id)
         .order("floor_name");
 
       setFloors(data || []);
       setRooms([]);
       setFormData((prev) => ({ ...prev, floor_id: "", room_id: "" }));
     };
+
     fetchFloors();
   }, [formData.building_id]);
 
@@ -80,12 +92,13 @@ export default function ReportForm() {
       const { data } = await supabase
         .from("rooms")
         .select("*")
-        .eq("floor_id", formData.floor_id)
+        .eq("id_floor", formData.floor_id)
         .order("room_name");
 
       setRooms(data || []);
       setFormData((prev) => ({ ...prev, room_id: "" }));
     };
+
     fetchRooms();
   }, [formData.floor_id]);
 
@@ -101,45 +114,34 @@ export default function ReportForm() {
      HANDLE SUBMIT
      ====================== */
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  // ✅ FIX 2: Manual validation (IMPORTANT)
-  if (
-    !formData.building_id ||
-    !formData.floor_id ||
-    !formData.room_id
-  ) {
-    alert("Sila pilih bangunan, aras dan bilik.");
-    return;
-  }
+    if (!formData.room_id) {
+      alert("Sila pilih bilik.");
+      return;
+    }
 
-  setLoading(true);
+    setLoading(true);
 
-  // ✅ FIX 1: Convert empty string to null
-  const payload = {
-    name: formData.name,
-    building_id: formData.building_id || null,
-    floor_id: formData.floor_id || null,
-    room_id: formData.room_id || null,
-    equipment: formData.equipment,
-    description: formData.description,
+    const payload = {
+      name: formData.name,
+      id_room: formData.room_id,
+      equipment: formData.equipment,
+      description: formData.description,
+    };
+
+    const { error } = await supabase.from("reports").insert([payload]);
+
+    setLoading(false);
+
+    if (error) {
+      alert(error.message);
+    } else {
+      setSubmitted(true);
+    }
   };
 
-  const { error } = await supabase
-    .from("reports")
-    .insert([payload]);
-
-  setLoading(false);
-
-  if (error) {
-    console.error("Supabase error:", error);
-    alert(error.message);
-  } else {
-    setSubmitted(true);
-  }
-};
-
-
+  if (!mounted) return null;
 
   /* ======================
      SUCCESS PAGE
@@ -169,7 +171,7 @@ export default function ReportForm() {
   }
 
   /* ======================
-     FORM UI (STYLE SAME)
+     FORM UI (UNCHANGED)
      ====================== */
   return (
     <div className="min-h-screen bg-gray-50 pb-12">
@@ -198,135 +200,127 @@ export default function ReportForm() {
             </p>
           </div>
 
-          
           <form onSubmit={handleSubmit} className="p-8 space-y-6">
-            
-            {/* Nama Pemohon */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2 items-center gap-2">
-                <User className="w-4 h-4" /> Nama Pemohon
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                <User className="w-4 h-4 inline mr-2" />
+                Nama Pemohon
               </label>
-            <input
-              name="name"
-              required
-              placeholder="Nama Pemohon"
-              onChange={handleChange}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 text-black"
-            />
+              <input
+                name="name"
+                required
+                placeholder="Nama Pemohon"
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-xl border text-black"
+              />
             </div>
 
-          {/* Bangunan */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2 items-center gap-2">
-                <MapPin className="w-4 h-4" /> Bangunan
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                <MapPin className="w-4 h-4 inline mr-2" />
+                Bangunan
               </label>
-            <select
-              name="building_id"
-              required
-              onChange={handleChange}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 text-black"
-            >
-              <option value="">Pilih Bangunan</option>
-              {buildings.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
+              <select
+                name="building_id"
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-xl border text-black"
+              >
+                <option value="">Pilih Bangunan</option>
+                {buildings.map((b) => (
+                  <option
+                    key={b.building_id}
+                    value={b.building_id}
+                  >
+                    {b.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
-          {/* Aras */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2 items-center gap-2">
-                <MapPin className="w-4 h-4" /> Aras
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                <MapPin className="w-4 h-4 inline mr-2" />
+                Aras
               </label>
-            <select
-              name="floor_id"
-              required
-              disabled={!floors.length}
-              onChange={handleChange}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 text-black"
-            >
-              <option value="">Pilih Aras</option>
-              {floors.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.floor_name}
-                </option>
-              ))}
-            </select>
+              <select
+                name="floor_id"
+                disabled={!floors.length}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-xl border text-black"
+              >
+                <option value="">Pilih Aras</option>
+                {floors.map((f) => (
+                  <option
+                    key={f.floor_id}
+                    value={f.floor_id}
+                  >
+                    {f.floor_name}
+                  </option>
+                ))}
+              </select>
             </div>
 
-          {/* Bilik */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2 items-center gap-2">
-                <MapPin className="w-4 h-4" /> Bilik
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                <MapPin className="w-4 h-4 inline mr-2" />
+                Bilik
               </label>
-            <select
-              name="room_id"
-              required
-              disabled={!rooms.length}
-              onChange={handleChange}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 text-black"
-            >
-              <option value="">Pilih Bilik</option>
-              {rooms.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.room_name}
-                </option>
-              ))}
-            </select>
+              <select
+                name="room_id"
+                disabled={!rooms.length}
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-xl border text-black"
+              >
+                <option value="">Pilih Bilik</option>
+                {rooms.map((r) => (
+                  <option
+                    key={r.room_id}
+                    value={r.room_id}
+                  >
+                    {r.room_name}
+                  </option>
+                ))}
+              </select>
             </div>
 
-          {/* Jenis Peralatan */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2 items-center gap-2">
-                <Monitor className="w-4 h-4" /> Jenis Peralatan
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                <Monitor className="w-4 h-4 inline mr-2" />
+                Jenis Peralatan
               </label>
-            <select
-              name="equipment"
-              onChange={handleChange}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 text-black"
-            >
-              <option>Projektor</option>
-              <option>Sistem Bunyi (Speaker/Mic)</option>
-              <option>Kabel HDMI / Adaptor</option>
-              <option>Lain-lain</option>
-            </select>
+              <select
+                name="equipment"
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-xl border text-black"
+              >
+                <option>Projektor</option>
+                <option>Sistem Bunyi</option>
+                <option>Kabel HDMI</option>
+                <option>Lain-lain</option>
+              </select>
             </div>
 
-          {/* Perincian Masalah */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2 items-center gap-2">
-                <FileText className="w-4 h-4" /> Perincian Masalah
+              <label className="block text-sm font-bold text-gray-700 mb-2">
+                <FileText className="w-4 h-4 inline mr-2" />
+                Perincian Masalah
               </label>
-            <textarea
-              name="description"
-              required
-              rows="4"
-              placeholder="Perincian Masalah"
-              onChange={handleChange}
-              className="w-full px-4 py-3 rounded-xl border border-gray-300 text-black"
-            />
+              <textarea
+                name="description"
+                required
+                rows="4"
+                placeholder="Perincian Masalah"
+                onChange={handleChange}
+                className="w-full px-4 py-3 rounded-xl border text-black"
+              />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-lg flex items-center justify-center gap-2 transition-all 
-                ${
-                  loading
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-indigo-700 hover:bg-indigo-800 active:scale-95"
-                }`}
+              className="w-full py-4 rounded-xl text-white font-bold bg-indigo-700 hover:bg-indigo-800"
             >
-              {loading ? (
-                <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
-              ) : (
-                <>
-                  <Send className="w-5 h-5" />
-                  Hantar Laporan
-                </>
-              )}
+              {loading ? "Menghantar..." : "Hantar Laporan"}
             </button>
           </form>
         </div>
